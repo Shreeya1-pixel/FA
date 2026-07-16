@@ -3088,7 +3088,8 @@ def _make_photo_cell_from_rids(
         ET.SubElement(tc, f"{W}p")
         return tc, doc_id
 
-    # All images inline in ONE paragraph — side by side (wraps within the cell)
+    # All images inline in ONE paragraph — centered within the column so that
+    # single-image headings keep the neat 2-column grid.
     img_p = ET.SubElement(tc, f"{W}p")
     img_ppr = ET.SubElement(img_p, f"{W}pPr")
     ET.SubElement(img_ppr, f"{W}jc").set(f"{W}val", "center")
@@ -3186,9 +3187,25 @@ def _build_factory_photos_section(
 
     for i, child in enumerate(body):
         if child.tag.endswith("p") and _para_text(child).strip() == FACTORY_PHOTOS_START:
+            # Drop empty filler paragraphs right before the heading — these leave a
+            # blank page between the previous section and the photos.
+            j = i - 1
+            while j >= 0:
+                prev = body[j]
+                if (
+                    prev.tag.endswith("p")
+                    and not _para_text(prev).strip()
+                    and prev.find(f".//{W}br") is None
+                    and not _has_image(prev)
+                ):
+                    body.remove(prev)
+                    j -= 1
+                else:
+                    break
             _set_page_break_before(child)
             _set_keep_next(child)
-            body.insert(i + 1, tbl)
+            insert_at = list(body).index(child) + 1
+            body.insert(insert_at, tbl)
             break
 
     for child in body:
@@ -4190,6 +4207,11 @@ def fill_template(
     section_content: dict[str, list[tuple[int, int, int]]] = {}
 
     def _uniform_extent(w: int, h: int) -> tuple[int, int]:
+        # Force every factory photo to the exact same box so the grid is neat.
+        return PHOTO_FIXED_WIDTH_EMU, PHOTO_FIXED_HEIGHT_EMU
+
+    def _fit_extent(w: int, h: int) -> tuple[int, int]:
+        # Certificate/master-list pages: keep aspect ratio, cap the height.
         ratio = h / max(w, 1)
         cx = PHOTO_FIXED_WIDTH_EMU
         cy = int(cx * ratio)
@@ -4283,7 +4305,7 @@ def fill_template(
                 rid = rel_ids[rel_idx]
                 rel_idx += 1
                 rel_items.append((rid, media_name.replace("word/", "")))
-                cx, cy = _uniform_extent(w, h)
+                cx, cy = _fit_extent(w, h)
                 section_content.setdefault(key, []).append((rid, cx, cy))
 
         for kind, sig_path in signature_items:
