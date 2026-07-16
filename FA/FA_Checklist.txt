@@ -1,0 +1,62 @@
+GENERAL DOCUMENTS
+Trade License / Business license / Manufacturing license
+ISO 9001
+ISO 14001 (if available)
+Factory Layout
+Master list for the Documents - Procedures & Records
+Organization Structure
+
+INCOMING MATERIAL CONTROL
+Quality Plan – Incoming NOT THERE
+COA / MTC / Test Report from the Supplier NOT THERE
+SOP for Incoming Material Inspection
+Incoming Inspection Checklist NOT THERE
+Recent Incoming Inspection Records
+Non-Conformance Handling Procedure
+Material Rejection Tag
+
+PROCESS CONTROL
+Quality Plan (In-process) – Inspection / Testing
+Training Plan / Procedure NOT THERE
+Training Records
+Work Instructions / Engineering Drawings
+Preventive Maintenance SOP NOT THERE
+Equipment Maintenance Schedule / Log / Plan
+
+CALIBRATION OF MEASURING EQUIPMENT
+Calibration SOP NOT THERE
+Calibration Certificates
+Equipment Master List
+Calibration Tags / Labels
+
+100% INSPECTION OF FINISHED PRODUCT
+Quality Plan – Finished Good (testing / inspection)
+Records of the Testing NOT THERE
+Records of the Visual Inspection NOT THERE
+
+MATERIAL HANDLING & STORAGE
+Material Handling & Storage SOP NOT THERE
+Finished Goods Storage Procedure NOT THERE
+Packaging / Handling Instructions / Procedures NOT THERE
+
+TEST REPORTS & COMPLAINTS
+Test Reports NOT THERE
+Customer Complaint Handling SOP NOT THERE
+Complaint Log
+Complaint and Corrective ACTION Report NOT THERE
+
+FACTORY PHOTOS
+Front Main Building NOT THERE
+Incoming Raw Material (RM) Area NOT THERE
+Production floor Area NOT THERE
+Packing Area NOT THERE
+Inspection Area NOT THERE
+Lab Area – Equipment used for Testing and inspection NOT THERE
+Calibration Labels on Equipment NOT THERE
+Non-Conformity Area / Rejection Area for RM & Final Product NOT THERE
+Final Product Storage Area NOT THERE
+Final Product Photos NOT THERE
+A clear image of the product label NOT THERE
+A clear image of the product barcode / QR code NOT THERE
+An image showing identity and shape of the product / each model NOT THERE
+An image of the trademark NOT THERE

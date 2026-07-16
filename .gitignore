@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+env/
+
+# macOS
+.DS_Store
+
+# Portal runtime artifacts
+fa_portal/runs/
+fa_portal/fa_feedback.jsonl
+portal/
+
+# FA temp/test outputs
+FA/_cert_tmp/
+FA/test_output/
+FA/test_output2/
+FA/test_output_meta/
+FA/test_certs.docx
+FA/test_docx_certs.docx
+FA/test_fix_output.docx
+
+# Misc workspace
+.browser_profile/
+debug/

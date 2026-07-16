@@ -1,0 +1,128 @@
+FACTORY AUDIT (FA) — WORKING INSTRUCTIONS
+============================================
+Reference template: ~/Desktop/FA template.docx (TÜV Rheinland Initial / Surveillance / Re-Assessment)
+
+IMPORTANT
+---------
+Document numbers are DIFFERENT for every factory / client.
+Never hardcode numbers from one job into another.
+Always look them up fresh from the master list in the folder you received.
+
+GENERAL TASK
+------------
+1. Receive folder from client/email (procedures, records, photos, master list).
+2. Open the master list PDF in that folder (name varies: "Master List of Procedures",
+   "List of IMS Procedures", etc.).
+3. For each FA checklist item, search the master list by TOPIC (see section map below).
+4. Note the document number from the master list.
+5. Find the matching file in the folder (filename often contains part of the number).
+6. Mark NOT THERE if on checklist but not in folder.
+
+HOW TO FIND DOCUMENTS
+---------------------
+1. Open the master list in the current folder.
+2. Search by keyword — examples:
+     incoming, material receipt, traceability, COA, MTC
+     training, competency, awareness
+     preventive maintenance, equipment management, calibration
+     fabrication, work instruction, yard, shop
+     inspection, test plan, ITP, hydrostatic, pneumatic, NDT
+     non-conforming, NCR, rejection, corrective action
+     handling, storage, warehouse, packing, shipping
+     complaint, customer
+     records, register, log
+3. Each factory uses its own numbering scheme. Examples seen:
+     CCL-XX-PR-xxxx  → procedures / SOPs
+     CCL-XX-FR-xxxx  → forms / records
+     CCL-XX-FC-xxxx  → process maps / flow charts
+     (Other factories may use completely different prefixes.)
+4. Match master list entry → filename in folder.
+5. For project-specific records (MIR, ITP, drawings), use project number in filename
+   (e.g. 5136-MIR, ITP-5136…) — these won't be on the master list.
+
+SECTION MAP — WHAT TO SEARCH FOR (not fixed doc numbers)
+--------------------------------------------------------
+
+2.0 — INCOMING RAW MATERIALS
+    2.1  Incoming inspection / testing procedure
+         → Search master list: "incoming", "material receipt", "material inspection",
+           "traceability", "receiving"
+    2.2  Supplier conformity (COA / MTC / test report from supplier)
+         → Usually actual supplier certificates in folder, not on master list
+    2.3  Incoming inspection checklist or records
+         → Search: "material receiving inspection report", "MIR", incoming records
+         → Look for filled forms / registers in folder
+
+3.0 — PRODUCTION CONTROL
+    3.1  Training procedure and records
+         → Search: "training", "competency", "awareness"
+         → Look for training records, toolbox talks in folder
+    3.2  Preventive maintenance + quality plan of process
+         → Search: "preventive maintenance", "plant & equipment", "equipment management"
+         → Look for: PM plan, ITP (Inspection & Test Plan) for the project
+    3.3  In-process inspection / testing
+         → Search: "inspection", "testing", "QC inspection process"
+         → Look for: ITP, QC procedures, process maps
+    3.4  Production controlled; examined at stages (WI, SOP, halfway instructions)
+         → Search: "fabrication", "yard", "work instruction", "shop"
+         → Search: "pressure vessel inspection", "hydrostatic", "pneumatic", "penetrant"
+         → Look for: ITP, engineering drawings, fabrication SOPs, QC test procedures
+    3.5  Non-conforming products
+         → Search: "non-conforming", "non conformity", "NCR"
+         → Look for: NCR register, rejection tags/stickers in folder
+    3.6  Records of routine tests and preventive maintenance
+         → Search: "preventive maintenance" (plan/form on master list or in folder)
+         → Look for: filled test reports, MIR, inspection records, PM logs in folder
+         → Routine test record forms often listed in QC manual exhibit (FR-xxxx series)
+
+4.0 — CALIBRATION
+    4.1  Calibration certificates
+         → Look for certificate PDFs in folder (not always on master list)
+    4.2  Equipment list with calibration due dates
+         → Search: "calibration register", "calibration control"
+    4.3  Calibration SOP
+         → Search: "calibration control", "measuring equipment"
+    4.4  Calibration test records
+         → Look for filled calibration records in folder
+    4.5  Corrective action / recall
+         → Search: "corrective action", "non-conforming"
+
+5.0 — HANDLING AND STORAGE
+    5.1  Raw material handling
+         → Search: "material handling", "warehouse", "storage"
+    5.2  Final product handling
+         → Search: "packing", "shipping", "finished goods"
+
+6.0 — FINAL PRODUCT & COMPLAINTS
+    6.1  Final product testing
+         → Search: test procedures on master list; filled final test reports in folder
+         → ITP final stages
+    6.2  Rejection control / traceability
+         → Search: "traceability", "rejection"
+    6.3  Customer complaints
+         → Search: "customer", "complaint"
+         → Look for complaint register in folder
+
+CHECKLIST OUTPUT FORMAT
+-----------------------
+  - List all checklist items under each section
+  - Append "NOT THERE" at end of line if missing from folder
+  - For found items: write document number (from THAT folder's master list) + filename
+
+REPORT NUMBER FORMAT
+--------------------
+  FA + country code + auditor initials + audit date + sequence
+  Example: FAAENP2506202601
+    FA     = Factory Audit prefix (always)
+    AE     = United Arab Emirates
+    NP     = Nigal Paul (lead auditor initials; add second auditor initials if needed)
+    25062026 = audit date DDMMYYYY
+    01     = sequence number
+
+  Country codes: UAE/AE, Hong Kong/HK, Saudi Arabia/SA, etc.
+  If auditor names are not readable from PDFs (e.g. handwritten on audit plan),
+  enter them in the portal before running FA.
+
+WORKED EXAMPLE (Cylingas J-5136 only — do not reuse these numbers)
+-------------------------------------------------------------------
+See FA_Findings_3.4_3.6.txt for one completed lookup against FW__J5136 folder.
