@@ -132,6 +132,11 @@ MASTER_LIST_PATTERNS = [
     r"list\s*of\s*ims",
     r"matster\s*list",
     r"daftar\s*dokumen",   # Indonesian "list of documents"
+    r"\bdcr\b",            # Document Control Register (Excel)
+    r"document\s*control\s*register",
+    r"document\s*register",
+    r"controlled\s*documents?\s*register",
+    r"documents?\s*control\s*list",
 ]
 
 # Broad doc-number pattern: accepts IMS-English, Indonesian WG/..., S*-WG-*, and alphanumeric codes.
@@ -141,8 +146,11 @@ DOC_NO_RE = re.compile(
     r"WG/[A-Z]{2,6}-[A-Z]{2,6}/\d{3,4}"   # WG/PRO-PROD/076
     r"|S[A-Z]{2}-WG-\d{2,4}"               # SMQ-WG-02, SML-WG-01
     r"|[A-Z]{2,8}(?:[/-][A-Z]{2,8}){1,5}-\d{3,4}"  # GPGM-IMS-SOP-001, WG-IK-PROD-001
-    r"|[A-Z]{2,8}(?:-[A-Z]{0,6}\d{3,6})+"  # SOP-QC-001, FR-014, QP-001
-    r"|[A-Z]{2,8}-\d{4,8}"                 # MS-0042909
+    r"|[A-Z]{2,8}(?:-[A-Z]{0,6}\d{2,6})+"  # SOP-QC-001, FR-014, ASF-25-001
+    r"|[A-Z]{1,6}-\d{1,4}(?:-[A-Z0-9]+)?"  # C-001, P-011, WS-PL-S, MS-0042909
+    r"|[A-Z]{2,6}-[A-Z]{2,8}"             # WS-PLS, WS-TT
+    r"|392-\d{4}-\d{5,}(?:_[A-Z0-9]+)?"   # Eurofins-style lab report numbers
+    r"|100\d{7,}-\d{5,}"                  # UL-style test report numbers
     r")\b",
     re.I,
 )
@@ -153,6 +161,8 @@ _FILENAME_DOC_NO_RE = re.compile(
     r"|[A-Z]{1,6}-\d{4,}"                 # MS-0042909, FR-0012
     r"|[A-Z]{2,6}-[A-Z]{2,6}-\w{2,6}-\d{2,4}"  # ABCHIL-QMS-SOP-14
     r"|[A-Z]{2,6}-[A-Z]{2,10}-\d{2,4}"   # QC-INSP-01
+    r"|[A-Z]{2,8}-\d{2,4}-\d{2,4}"       # ASF-25-001
+    r"|[A-Z]{1,6}-\d{3,4}"               # C-001, P-011
     r")\s*",
     re.I,
 )
@@ -217,9 +227,9 @@ SECTION_KEYWORDS: dict[str, list[str]] = {
         "maintenance log", "record of sop", "production record", "pm plan",
     ],
     # 4.0 Calibration of safety test and measuring equipment
-    "4.1": [  # Calibration certificate (number reviewed)
+    "4.1": [  # Calibration certificate (number reviewed) — not worksheets
         "calibration certificate", "calibration cert", "certificate calibration",
-        "certification", "calibration",
+        "external calibration", "calibrated by",
     ],
     "4.2": [  # List of equipment with calibration due dates / logs
         "equipment list", "calibration register", "calibration due", "calibration log",
@@ -233,8 +243,10 @@ SECTION_KEYWORDS: dict[str, list[str]] = {
         "in house lab certificate", "in house lab", "lab approval", "accreditation certificate",
         "accrediation certificate",
     ],
-    "4.4": [  # Records / testing done for calibration
+    "4.4": [  # Records / testing done for calibration (worksheets / checks)
         "calibration record", "calibration result", "calibration test",
+        "calibration check", "calibration worksheet", "instrument check",
+        "ph meter check", "viscometer calibration", "oven calibration",
         "validation", "verification record",
     ],
     "4.5": [  # Corrective action for non-conformity / product recall
@@ -253,40 +265,42 @@ SECTION_KEYWORDS: dict[str, list[str]] = {
         "shipping",
     ],
     # 6.0 Product Verification Testing (PVT) and complaint handling
-    "6.1": [  # Final product testing
+    "6.1": [  # Final product testing + external lab test reports
         "final inspection", "final test", "finished good", "pvt", "product verification",
         "final product test", "record of the testing", "visual inspection",
-        "finished product inspection",
+        "finished product inspection", "voc emission", "voc content", "test report",
+        "emission test", "cdph", "scaqmd", "qc sheet", "qc log", "sampling record",
+        "indoor air", "reaction to fire",
     ],
     "6.2": [  # Final product rejection control / product traceability
         "traceability", "product traceability", "rejection control", "rejection",
-        "unsatisfactory", "pvt result",
+        "unsatisfactory", "pvt result", "pass / fail", "pass fail",
     ],
-    "6.3": [  # Customer complaint handling
-        "complaint", "customer complaint", "customer related", "complaint handling",
-        "complaint log",
+    "6.3": [  # Customer complaint handling SOP / log (not QM narrative alone)
+        "complaint handling", "customer complaint", "complaint procedure",
+        "complaint sop", "complaint log", "complaint register", "customer claim",
     ],
 }
 
 FILENAME_HINTS: dict[str, list[str]] = {
-    "2.1": ["incoming", "receipt", "receiving", "material inspection", "report incoming"],
-    "2.2": ["conformity", "coa", "mtc", "non-conform", "nonconform", "supplier"],
-    "2.3": ["incoming record", "incoming checklist", "receiving report", "report incoming", "mir", "incoming inspection"],
+    "2.1": ["incoming", "receipt", "receiving", "material inspection", "report incoming", "raw material control"],
+    "2.2": ["conformity", "coa", "mtc", "cof a", "certificate of analysis", "non-conform", "nonconform", "supplier"],
+    "2.3": ["incoming record", "incoming checklist", "receiving report", "report incoming", "mir", "incoming inspection", "raw material control"],
     "3.1": ["training", "toolbox", "competenc"],
-    "3.2": ["preventive", "maintenance", "work instruction", "wi ", "quality plan", "flow chart"],
-    "3.3": ["in line", "in-line", "inline", "qc in line", "itp", "in process", "end table"],
-    "3.4": ["sop", "work instruction", "wi ", "knitting", "trimming", "pairing", "yarn", "metal detector", "guideline", "internal quality"],
-    "3.5": ["ncr", "non-conform", "nonconform", "rejection"],
-    "3.6": ["routine", "maintenance", "test report", "record", "pm plan"],
-    "4.1": ["calibration certificate", "calibration cert", "certification", "certificate calibration", "calibration"],
+    "3.2": ["preventive", "maintenance", "work instruction", "wi ", "quality plan", "flow chart", "control plan"],
+    "3.3": ["in line", "in-line", "inline", "qc in line", "itp", "in process", "end table", "inspection testing", "qc sheet"],
+    "3.4": ["sop", "work instruction", "operator work", "worksheet", "wi ", "knitting", "trimming", "pairing", "yarn", "metal detector", "guideline", "internal quality"],
+    "3.5": ["ncr", "non-conform", "nonconform", "rejection", "change control"],
+    "3.6": ["routine", "maintenance", "test report", "record", "pm plan", "qc sheet", "sampling record", "inspection testing"],
+    "4.1": ["calibration certificate", "calibration cert", "certificate calibration"],
     "4.2": ["equipment list", "calibration register", "calibration log", "calibration due", "calibration schedule", "lab profile", "laboratory"],
     "4.3": ["calibration control", "calibration procedure", "calibration sop", "calibration method", "lab accreditation", "accreditation", "in house lab", "accrediation"],
-    "4.4": ["calibration record", "validation", "calibration result"],
+    "4.4": ["calibration record", "calibration check", "calibration worksheet", "instrument check", "validation", "calibration result"],
     "4.5": ["corrective", "recall", "ncr"],
-    "5.1": ["handling", "warehouse", "storage", "yarn receipt"],
-    "5.2": ["packing", "shipping", "finished", "final product"],
-    "6.1": ["final inspection", "final test", "pvt", "record of the testing", "visual inspection"],
-    "6.2": ["traceability", "rejection", "ncr"],
+    "5.1": ["handling", "warehouse", "storage", "yarn receipt", "process map"],
+    "5.2": ["packing", "shipping", "finished", "final product", "process map"],
+    "6.1": ["final inspection", "final test", "pvt", "record of the testing", "visual inspection", "voc", "cdph", "scaqmd", "test report", "qc sheet", "sampling record", "fire"],
+    "6.2": ["traceability", "rejection", "ncr", "sampling record"],
     "6.3": ["complaint"],
 }
 
@@ -615,35 +629,84 @@ class FAResult:
 
 
 MASTER_LIST_ONLY_FILENAME = "(listed in master list - file not uploaded)"
+REGISTER_ONLY_FILENAME = "(listed in document register - file not uploaded)"
+
+# Filename patterns that look like document registers (Excel or PDF/DOCX).
+_REGISTER_FILE_RE = re.compile(
+    r"master\s*(?:documents?\s*)?list|"
+    r"list\s*of\s*.*(?:procedures?|documents?|records?)|"
+    r"list\s*of\s*ims|"
+    r"matster\s*list|"
+    r"daftar\s*dokumen|"
+    r"\bdcr\b|"
+    r"document\s*control|"
+    r"document\s*register|"
+    r"controlled\s*documents?",
+    re.I,
+)
+
+_REGISTER_COL_ID_RE = re.compile(
+    r"^(?:doc(?:ument)?\s*(?:id|no\.?|number|ref(?:erence)?)|doc\s*id|id)$",
+    re.I,
+)
+_REGISTER_COL_NAME_RE = re.compile(
+    r"^(?:doc(?:ument)?\s*name|title|name|description|doc\s*title)$",
+    re.I,
+)
+_REGISTER_COL_OBSOLETE_RE = re.compile(r"obsolete|status|active", re.I)
 
 
 def _is_master_list_only_filename(filename: str) -> bool:
     return filename in {
         MASTER_LIST_ONLY_FILENAME,
+        REGISTER_ONLY_FILENAME,
         "(on master list — file not in folder)",
     }
 
 
+def _score_register_candidate(path: Path) -> int:
+    name = path.name.lower()
+    score = 0
+    for pat in MASTER_LIST_PATTERNS:
+        if re.search(pat, name, re.I):
+            score += 10
+    if "procedure" in name and "list" in name:
+        score += 8
+    if path.suffix.lower() in {".xlsx", ".xls"} and _REGISTER_FILE_RE.search(name):
+        score += 6
+    if re.search(r"\bdcr\b", name):
+        score += 12
+    return score
+
+
 def find_master_list(folder: Path) -> Path | None:
-    candidates: list[tuple[int, Path]] = []
+    """Return the best single master-list / document-register file."""
+    candidates = find_document_registers(folder)
+    return candidates[0] if candidates else None
+
+
+def find_document_registers(folder: Path) -> list[Path]:
+    """Return all register-like files (PDF/DOCX/XLSX), best first."""
+    scored: list[tuple[int, Path]] = []
     for path in folder.rglob("*"):
         if not path.is_file():
             continue
-        if path.suffix.lower() not in {".pdf", ".docx"}:
+        if path.suffix.lower() not in {".pdf", ".docx", ".xlsx", ".xls"}:
             continue
-        name = path.name.lower()
-        score = 0
-        for pat in MASTER_LIST_PATTERNS:
-            if re.search(pat, name, re.I):
-                score += 10
-        if "procedure" in name and "list" in name:
-            score += 8
+        score = _score_register_candidate(path)
         if score:
-            candidates.append((score, path))
-    if not candidates:
-        return None
-    candidates.sort(key=lambda x: (-x[0], len(x[1].name)))
-    return candidates[0][1]
+            scored.append((score, path))
+    scored.sort(key=lambda x: (-x[0], len(x[1].name)))
+    # Deduplicate by resolved path while keeping order
+    out: list[Path] = []
+    seen: set[Path] = set()
+    for _, path in scored:
+        resolved = path.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        out.append(path)
+    return out
 
 
 def parse_master_list_docx(docx_path: Path) -> list[MasterEntry]:
@@ -660,15 +723,6 @@ def parse_master_list_docx(docx_path: Path) -> list[MasterEntry]:
         return []
 
     entries: list[MasterEntry] = []
-    section_kw_map = {
-        "incoming material": ["2.1", "2.2", "2.3"],
-        "process control":   ["3.2", "3.3", "3.4"],
-        "calibration":       ["4.1"],
-        "100% inspection":   ["5.2", "6.1"],
-        "general":           [],   # handled separately
-        "factory photos":    [],   # handled separately
-        "final product photo": [],
-    }
 
     for tbl in doc.tables:
         for ri, row in enumerate(tbl.rows):
@@ -677,7 +731,6 @@ def parse_master_list_docx(docx_path: Path) -> list[MasterEntry]:
             cells = [c.text.strip() for c in row.cells]
             if len(cells) < 2:
                 continue
-            section_label = cells[0].lower()
             shared_raw = cells[2] if len(cells) > 2 else cells[1]
             # Shared col may have multiple filenames separated by newlines
             for shared in re.split(r"\n+", shared_raw):
@@ -686,8 +739,106 @@ def parse_master_list_docx(docx_path: Path) -> list[MasterEntry]:
                     continue
                 # Use the filename stem as a pseudo doc_no so match_documents can find the file
                 doc_no = Path(shared).stem
-                entries.append(MasterEntry(name=shared, doc_no=doc_no))
+                entries.append(MasterEntry(name=shared, doc_no=doc_no, source="master_list"))
     return entries
+
+
+def parse_master_list_xlsx(xlsx_path: Path) -> list[MasterEntry]:
+    """Parse Excel document registers (DCR / Doc ID / Doc Name tables).
+
+    Generic: auto-detects Doc ID and Doc Name columns from the header row.
+    Works for Armourcoat-style DCR sheets and similar controlled-document lists.
+    """
+    try:
+        from openpyxl import load_workbook
+        wb = load_workbook(xlsx_path, data_only=True, read_only=True)
+    except Exception:
+        return []
+
+    entries: list[MasterEntry] = []
+    seen: set[str] = set()
+
+    try:
+        for sheet_name in wb.sheetnames:
+            ws = wb[sheet_name]
+            rows = list(ws.iter_rows(max_row=800, values_only=True))
+            if not rows:
+                continue
+
+            header_idx = -1
+            id_col = name_col = obsolete_col = None
+            for i, row in enumerate(rows[:25]):
+                cells = [("" if c is None else str(c).strip()) for c in (row or ())]
+                trial_id = trial_name = trial_obs = None
+                for j, cell in enumerate(cells):
+                    if not cell:
+                        continue
+                    if trial_id is None and _REGISTER_COL_ID_RE.match(cell):
+                        trial_id = j
+                    elif trial_name is None and _REGISTER_COL_NAME_RE.match(cell):
+                        trial_name = j
+                    elif trial_obs is None and _REGISTER_COL_OBSOLETE_RE.search(cell):
+                        trial_obs = j
+                if trial_id is not None and trial_name is not None and trial_id != trial_name:
+                    header_idx, id_col, name_col, obsolete_col = i, trial_id, trial_name, trial_obs
+                    break
+
+            if header_idx < 0 or id_col is None or name_col is None:
+                continue
+
+            for row in rows[header_idx + 1 :]:
+                cells = [("" if c is None else str(c).strip()) for c in (row or ())]
+                if id_col >= len(cells) or name_col >= len(cells):
+                    continue
+                doc_no = cells[id_col].strip().upper()
+                name = re.sub(r"\s+", " ", cells[name_col]).strip(" -–/")
+                if not doc_no or not name or len(name) < 3:
+                    continue
+                if not re.search(r"[A-Za-z]{2}", name):
+                    continue
+                if obsolete_col is not None and obsolete_col < len(cells):
+                    obs = cells[obsolete_col].strip().lower()
+                    if obs in {"yes", "y", "true", "obsolete", "inactive"}:
+                        continue
+                # Prefer real codes; skip pure numeric row indexes
+                if re.fullmatch(r"\d{1,4}", doc_no):
+                    continue
+                if doc_no in seen:
+                    continue
+                seen.add(doc_no)
+                entries.append(
+                    MasterEntry(name=name, doc_no=doc_no, source="document_register")
+                )
+    finally:
+        try:
+            wb.close()
+        except Exception:
+            pass
+
+    return entries
+
+
+def collect_register_entries(folder: Path) -> tuple[Path | None, list[MasterEntry]]:
+    """Parse all register-like files in the folder and merge unique entries."""
+    registers = find_document_registers(folder)
+    if not registers:
+        return None, []
+
+    primary = registers[0]
+    merged: list[MasterEntry] = []
+    seen: set[str] = set()
+    for path in registers:
+        try:
+            entries = parse_master_list(path)
+        except Exception:
+            entries = []
+        for entry in entries:
+            key = entry.doc_no.strip().upper()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            merged.append(entry)
+    return primary, merged
 
 
 FACTORY_INFO_FILE_PATTERNS = [
@@ -1789,9 +1940,12 @@ def _extract_iso_certificate_details(path: Path, iso_no: str) -> dict[str, str]:
 
 
 def parse_master_list(pdf_path: Path) -> list[MasterEntry]:
-    """Parse master-list files (PDF or DOCX)."""
-    if pdf_path.suffix.lower() == ".docx":
+    """Parse master-list / register files (PDF, DOCX, or XLSX)."""
+    suffix = pdf_path.suffix.lower()
+    if suffix == ".docx":
         return parse_master_list_docx(pdf_path)
+    if suffix in {".xlsx", ".xls"}:
+        return parse_master_list_xlsx(pdf_path)
     reader = PdfReader(str(pdf_path))
     text = "\n".join((p.extract_text() or "") for p in reader.pages)
     entries: list[MasterEntry] = []
@@ -2113,7 +2267,13 @@ def score_match(section_id: str, blob: str) -> float:
 def extract_doc_no_from_filename(name: str) -> str:
     m = DOC_NO_RE.search(name)
     if m:
-        return m.group(1).upper()
+        candidate = m.group(1).upper()
+        if not re.fullmatch(
+            r"(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)-?\d{2,4}",
+            candidate,
+            re.I,
+        ):
+            return candidate
     # Try leading doc-number prefix in filename
     stem = Path(name).stem
     mp = _FILENAME_DOC_NO_RE.match(stem)
@@ -2124,51 +2284,205 @@ def extract_doc_no_from_filename(name: str) -> str:
 
 # Patterns for doc numbers embedded in document text (header, footer, first/last page)
 _DOC_NO_TEXT_PATTERNS = [
-    r"(?:document\s*(?:no|number|ref)[.:]\s*)([A-Z0-9][\w.\-/]{2,30})",
-    r"(?:doc(?:ument)?\s*#\s*)([A-Z0-9][\w.\-/]{2,30})",
-    r"(?:ref(?:erence)?\s*(?:no|number)?[.:]\s*)([A-Z0-9][\w.\-/]{2,30})",
-    r"(?:procedure\s*no[.:]\s*)([A-Z0-9][\w.\-/]{2,30})",
-    r"(?:form\s*no[.:]\s*)([A-Z0-9][\w.\-/]{2,30})",
+    r"(?:document\s*(?:no|number|ref|id)[.:]\s*)([A-Z0-9][\w.\-/]{2,40})",
+    r"(?:doc(?:ument)?\s*(?:id|#)\s*[:.]?\s*)([A-Z0-9][\w.\-/]{2,40})",
+    r"(?:ref(?:erence)?\s*(?:no|number)?[.:]\s*)([A-Z0-9][\w.\-/]{2,40})",
+    r"(?:procedure\s*no[.:]\s*)([A-Z0-9][\w.\-/]{2,40})",
+    r"(?:form\s*no[.:]\s*)([A-Z0-9][\w.\-/]{2,40})",
+    r"(?:report\s*(?:no|number|#)\s*[:.]?\s*)([A-Z0-9][\w.\-/]{4,40})",
+    r"(?:test\s*report\s*#?\s*[:.]?\s*)([A-Z0-9][\w.\-/]{4,40})",
+    r"\b(392-\d{4}-\d{5,}(?:_[A-Z0-9]+)?)\b",
+    r"\b(100\d{7,}-\d{5,})\b",
+    r"\b([A-Z]{2,6}-[A-Z]{2,8})\b",   # WS-PLS, WS-TT
+    r"\b([A-Z]{1,6}-\d{3,4}(?:-[A-Z0-9]+)?)\b",  # C-001, ASF-25-001-ish
     r"\b([A-Z]{2,6}-[A-Z]{0,6}\d{2,6}(?:-\d{1,3})?)\b",   # e.g. SOP-QC-001, FR-014
 ]
+
+_CONTENT_TITLE_PATTERNS = [
+    r"(?:document\s*title|title|report\s*title)\s*[:.]\s*([^\n]{5,120})",
+    r"(VOC\s+EMISSION\s+TEST\s+REPORT[^\n]{0,80})",
+    r"(TEST\s+REPORT[^\n]{0,80})",
+    r"(CERTIFICATE\s+OF\s+ANALYSIS[^\n]{0,80})",
+    r"(WEEKLY\s+PH\s+METER\s+CHECK\s+WORKSHEET)",
+    r"(DAILY/?MONTHLY\s+VISCOMETER\s+CALIBRATION\s+WORKSHEET)",
+    r"(DRYING\s+OVEN\s+CALIBRATION\s+WORKSHEET)",
+]
+
+
+def _xlsx_preview_text(path: Path, max_rows: int = 30) -> str:
+    """Read a short text preview from the first sheets of an Excel file."""
+    try:
+        from openpyxl import load_workbook
+        wb = load_workbook(path, data_only=True, read_only=True)
+    except Exception:
+        return ""
+    parts: list[str] = [path.stem]
+    try:
+        for sheet_name in wb.sheetnames[:4]:
+            parts.append(sheet_name)
+            ws = wb[sheet_name]
+            for i, row in enumerate(ws.iter_rows(max_row=max_rows, values_only=True)):
+                vals = [str(c).strip() for c in (row or ()) if c is not None and str(c).strip()]
+                if vals:
+                    parts.append(" ".join(vals[:12]))
+                if i > max_rows:
+                    break
+    finally:
+        try:
+            wb.close()
+        except Exception:
+            pass
+    return " ".join(parts)
+
+
+def extract_content_meta(path: Path) -> dict[str, str]:
+    """Extract doc_no / title / searchable blob from PDF, DOCX, or XLSX content."""
+    ext = path.suffix.lower()
+    text = ""
+    title = ""
+    doc_no = ""
+    try:
+        if ext == ".pdf":
+            text = _pdf_text(path, max_pages=2)
+        elif ext == ".docx":
+            from docx import Document as _Doc
+            doc = _Doc(str(path))
+            paras = [p.text for p in doc.paragraphs if p.text.strip()]
+            text = " ".join(paras[:12] + paras[-4:])
+        elif ext in {".xlsx", ".xls"}:
+            text = _xlsx_preview_text(path)
+        else:
+            return {"doc_no": "", "title": "", "blob": ""}
+    except Exception:
+        return {"doc_no": "", "title": "", "blob": path.stem.lower()}
+
+    compact = re.sub(r"\s+", " ", text or "")
+    for pat in _DOC_NO_TEXT_PATTERNS:
+        m = re.search(pat, compact, re.I)
+        if not m:
+            continue
+        candidate = m.group(1).strip().upper()
+        if re.match(r"^\d{4}$", candidate) or len(candidate) < 3:
+            continue
+        # Reject common false positives / date fragments (JUL-26, 10-JUL-26)
+        if candidate.lower() in {"version", "page", "date", "form", "document"}:
+            continue
+        if re.fullmatch(
+            r"(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)-?\d{2,4}",
+            candidate,
+            re.I,
+        ):
+            continue
+        if re.fullmatch(r"\d{1,2}-[A-Z]{3}-?\d{2,4}", candidate, re.I):
+            continue
+        # Reject long prose tokens accidentally captured as codes
+        if len(candidate) > 40 or " " in candidate:
+            continue
+        # Prefer codes that look like document references (need digits, except WS-*)
+        if not re.search(r"\d", candidate):
+            if not re.match(r"^WS-[A-Z0-9-]{1,12}$", candidate):
+                continue
+        doc_no = candidate
+        break
+
+    for pat in _CONTENT_TITLE_PATTERNS:
+        m = re.search(pat, text or "", re.I)
+        if m:
+            title = re.sub(r"\s+", " ", m.group(1)).strip()[:120]
+            break
+    if not title:
+        # First meaningful line as a soft title
+        for line in (text or "").splitlines():
+            line = line.strip()
+            if len(line) >= 8 and re.search(r"[A-Za-z]{4}", line):
+                title = line[:120]
+                break
+
+    blob = _text_blob(path.stem, path.name, doc_no, title, compact[:1500])
+    return {"doc_no": doc_no, "title": title, "blob": blob}
 
 
 def _extract_doc_no_from_content(path: Path) -> str:
     """Try to read a doc-number from the first or last page of the document."""
-    try:
-        ext = path.suffix.lower()
-        if ext == ".pdf":
-            reader = PdfReader(str(path))
-            pages = reader.pages
-            # Check first and last page
-            texts = []
-            if pages:
-                texts.append(pages[0].extract_text() or "")
-            if len(pages) > 1:
-                texts.append(pages[-1].extract_text() or "")
-            text = " ".join(texts)
-        elif ext == ".docx":
-            from docx import Document as _Doc
-            doc = _Doc(str(path))
-            # First and last paragraph
-            paras = [p.text for p in doc.paragraphs if p.text.strip()]
-            text = " ".join(paras[:6] + paras[-3:])
-        elif ext in {".xlsx", ".xls", ".doc"}:
-            return ""
-        else:
-            return ""
+    return extract_content_meta(path).get("doc_no", "")
 
-        text = re.sub(r"\s+", " ", text)
-        for pat in _DOC_NO_TEXT_PATTERNS:
-            m = re.search(pat, text, re.I)
-            if m:
-                candidate = m.group(1).strip().upper()
-                # Reject pure dates or very short hits
-                if not re.match(r"^\d{4,}$", candidate) and len(candidate) >= 4:
-                    return candidate
-    except Exception:
-        pass
-    return ""
+
+def _section_evidence_boost(section_id: str, blob: str) -> float:
+    """Section-specific boosts/penalties from content + filename evidence."""
+    boost = 0.0
+    cal_worksheet = any(
+        k in blob
+        for k in (
+            "calibration check", "calibration worksheet", "weekly ph",
+            "viscometer calibration", "oven calibration", "instrument check",
+        )
+    )
+    cal_certificate = any(
+        k in blob
+        for k in ("calibration certificate", "certificate of calibration", "external calibration")
+    )
+    lab_test = any(
+        k in blob
+        for k in (
+            "voc emission", "voc content", "test report", "cdph", "scaqmd",
+            "indoor air comfort", "reaction to fire", "eurofins",
+        )
+    )
+    qc_finished = any(
+        k in blob
+        for k in ("qc sheet", "qc log", "sampling record", "inspection testing logs", "finished good")
+    )
+    complaint_sop = any(
+        k in blob
+        for k in ("complaint handling", "complaint procedure", "complaint sop", "complaint log", "complaint register")
+    )
+    quality_manual = any(k in blob for k in ("quality manual", "ims en-quality", "ims quality manual"))
+
+    if section_id == "4.1":
+        if cal_certificate:
+            boost += 10
+        if cal_worksheet and not cal_certificate:
+            boost -= 8
+    elif section_id == "4.4":
+        if cal_worksheet:
+            boost += 10
+        if cal_certificate and not cal_worksheet:
+            boost -= 2
+    elif section_id == "4.3":
+        if cal_worksheet and "sop" not in blob and "procedure" not in blob:
+            boost -= 6
+    elif section_id == "6.1":
+        if lab_test or qc_finished:
+            boost += 8
+    elif section_id == "3.6":
+        if qc_finished or cal_worksheet:
+            boost += 4
+    elif section_id == "6.3":
+        if complaint_sop:
+            boost += 10
+        if quality_manual and not complaint_sop:
+            boost -= 12
+        if "complaint" in blob and "handling" not in blob and "log" not in blob and "procedure" not in blob:
+            boost -= 4
+    elif section_id == "2.2":
+        if any(k in blob for k in ("certificate of analysis", "cof a", "coa", "inspection certificate")):
+            boost += 6
+    elif section_id in {"3.2", "3.3", "3.4"}:
+        if "quality control plan" in blob or "control plan" in blob or "asf-" in blob:
+            boost += 6 if section_id == "3.2" else 3
+        if "operator work instruction" in blob or re.search(r"\bws-", blob):
+            boost += 6 if section_id == "3.4" else (-2 if section_id == "3.2" else 1)
+    elif section_id == "5.1":
+        if "quality control plan" in blob or "control plan" in blob:
+            boost -= 4
+        if any(k in blob for k in ("companies house", "incorporation", "process map")):
+            boost -= 6
+    elif section_id == "5.2":
+        if "process map" in blob or "packing" in blob:
+            boost += 3
+        if any(k in blob for k in ("companies house", "incorporation", "quality control plan")):
+            boost -= 6
+    return boost
 
 
 # Noise suffixes commonly found in factory document filenames (versions, audit codes)
@@ -2194,46 +2508,52 @@ def _clean_doc_heading(heading: str, filename: str = "") -> str:
 
 def match_documents(folder: Path) -> FAResult:
     folder = folder.resolve()
-    master_path = find_master_list(folder)
-    master_entries: list[MasterEntry] = []
-    if master_path:
-        try:
-            master_entries = parse_master_list(master_path)
-        except Exception:
-            master_entries = []
+    master_path, master_entries = collect_register_entries(folder)
 
     files = list_folder_files(folder)
-    if master_path:
-        files = [f for f in files if f.resolve() != master_path.resolve()]
+    register_paths = {p.resolve() for p in find_document_registers(folder)}
+    if register_paths:
+        files = [f for f in files if f.resolve() not in register_paths]
 
     section_matches: dict[str, list[DocumentMatch]] = {sid: [] for sid in SECTION_IDS}
     used: dict[str, set[str]] = {sid: set() for sid in SECTION_IDS}
 
-    def add_match(section_id: str, heading: str, filename: str, doc_no: str, source: str, score: float):
+    def add_match(section_id: str, heading: str, filename: str, doc_no: str, source: str, score: float, status: str = ""):
         key = f"{doc_no}|{filename}".lower()
         if key in used[section_id]:
             return
         # Also dedup by bare filename so master-list + direct-file don't both appear for same file
         fname_key = f"__fname__|{filename}".lower()
-        is_master_only = _is_master_list_only_filename(filename)
-        if filename and not is_master_only and fname_key in used[section_id]:
+        is_register_only = _is_master_list_only_filename(filename)
+        if filename and not is_register_only and fname_key in used[section_id]:
             return
         if score < 2 and not doc_no:
             return
         used[section_id].add(key)
-        if filename and not is_master_only:
+        if filename and not is_register_only:
             used[section_id].add(fname_key)
-        status = "master_list_only" if is_master_only else "provided_file"
+        if not status:
+            if is_register_only:
+                status = "register_only" if "register" in filename else "master_list_only"
+            else:
+                status = "provided_file"
         section_matches[section_id].append(
-            DocumentMatch(heading=heading, filename=filename, doc_no=doc_no, source=source, score=score, status=status)
+            DocumentMatch(
+                heading=heading,
+                filename=filename,
+                doc_no=doc_no,
+                source=source,
+                score=score,
+                status=status,
+            )
         )
 
-    # Match master list entries to sections (primary source for 2.0–6.3 doc numbers)
+    # Match register / master-list entries to sections (primary source for doc numbers)
     for entry in master_entries:
         blob = _expand_master_blob(entry.name, entry.doc_no)
         ranked: list[tuple[str, float]] = []
         for sid in SECTION_IDS:
-            s = score_match(sid, blob) + _dept_affinity_boost(entry.doc_no, sid)
+            s = score_match(sid, blob) + _dept_affinity_boost(entry.doc_no, sid) + _section_evidence_boost(sid, blob)
             if s > 0:
                 ranked.append((sid, s))
         ranked.sort(key=lambda x: -x[1])
@@ -2256,6 +2576,12 @@ def match_documents(folder: Path) -> FAResult:
             if _doc_no_matches_filename(entry.doc_no, fl):
                 fname = f.name
                 break
+            # Worksheet / SOP register rows should not attach to unrelated product-named forms
+            entry_l = entry.name.lower()
+            doc_u = entry.doc_no.upper()
+            if doc_u.startswith("WS-") or "worksheet" in entry_l:
+                if not any(k in fl for k in ("worksheet", "work instruction", "operator", "wi ")):
+                    continue
             if name_tokens:
                 matched = sum(1 for t in name_tokens if t in fl)
                 # Require majority of meaningful tokens to match (stricter than before)
@@ -2270,13 +2596,22 @@ def match_documents(folder: Path) -> FAResult:
             # Only multi-assign for non-conformity sections; others take the single best
             if sid not in NON_CONFORMITY_SIDS and sid != ranked[0][0]:
                 continue
+            missing_name = (
+                REGISTER_ONLY_FILENAME
+                if entry.source == "document_register"
+                else MASTER_LIST_ONLY_FILENAME
+            )
+            status = "provided_file" if fname else (
+                "register_only" if entry.source == "document_register" else "master_list_only"
+            )
             add_match(
                 sid,
                 entry.name,
-                fname or MASTER_LIST_ONLY_FILENAME,
+                fname or missing_name,
                 entry.doc_no,
-                "master_list",
+                entry.source or "master_list",
                 s + (5 if fname else 0),
+                status=status,
             )
             if sid not in NON_CONFORMITY_SIDS:
                 break  # one section only for normal docs
@@ -2286,11 +2621,16 @@ def match_documents(folder: Path) -> FAResult:
         r"master\s*list|list of documents|organi[sz]ation\s*chart|org\s*chart|"
         r"organi[sz]ation\s*structure|business\s*license|trade\s*license|"
         r"manufacturing\s*license|\bnib\b|factory\s*layout|quality\s*manual|"
-        r"iso\s*9001|iso\s*14001|iso\s*45001|certificate iso",
+        r"iso\s*9001|iso\s*14001|iso\s*45001|certificate iso|"
+        r"articles of association|certificate(?:s)? of incorporation|"
+        r"companies[_\s-]*house|\bnda\b|factory\s*pictures?|factory\s*photos?|"
+        r"fa_filled|fa_summary|fa_checklist|application\s*form|"
+        r"final product pictures?|\blayout\b",
         re.I,
     )
 
     # Match folder files directly (skip raw image files — they go to photo slots only)
+    content_cache: dict[Path, dict[str, str]] = {}
     for f in files:
         if f.suffix.lower() in IMAGE_EXTENSIONS:
             continue
@@ -2299,12 +2639,21 @@ def match_documents(folder: Path) -> FAResult:
         name_lower = f.name.lower()
         doc_no = extract_doc_no_from_filename(f.name)
         stem_blob = _path_match_blob(folder, f)
-        if doc_no:
-            stem_blob = _text_blob(stem_blob, doc_no)
+        meta = content_cache.get(f)
+        if meta is None:
+            # Only inspect likely evidence files to keep runtime reasonable
+            if f.suffix.lower() in {".pdf", ".docx", ".xlsx", ".xls"}:
+                meta = extract_content_meta(f)
+            else:
+                meta = {"doc_no": "", "title": "", "blob": stem_blob}
+            content_cache[f] = meta
+        if meta.get("doc_no"):
+            doc_no = doc_no or meta["doc_no"]
+        stem_blob = _text_blob(stem_blob, meta.get("blob", ""), doc_no, meta.get("title", ""))
 
         ranked: list[tuple[str, float]] = []
         for sid in SECTION_IDS:
-            s = score_match(sid, stem_blob)
+            s = score_match(sid, stem_blob) + _section_evidence_boost(sid, stem_blob)
             if s > 0:
                 ranked.append((sid, s))
         ranked.sort(key=lambda x: -x[1])
@@ -2316,19 +2665,24 @@ def match_documents(folder: Path) -> FAResult:
         for sid, s in ranked:
             if s < max(3, top_score * 0.6):
                 continue
-            heading = f.stem
+            heading = meta.get("title") or f.stem
             for entry in master_entries:
-                if _doc_no_matches_filename(entry.doc_no, name_lower):
+                if _doc_no_matches_filename(entry.doc_no, name_lower) or (
+                    doc_no and entry.doc_no.upper() == doc_no.upper()
+                ):
                     heading = entry.name
                     doc_no = doc_no or entry.doc_no
                     break
-            add_match(sid, heading, f.name, doc_no, "folder", s)
+            status = "content_reference" if (meta.get("doc_no") and not extract_doc_no_from_filename(f.name)) else "provided_file"
+            add_match(sid, heading, f.name, doc_no, "folder", s, status=status)
 
-    _SEC_MAX: dict[str, int] = {"4.1": 5, "3.4": 4, "3.1": 3, "3.6": 4, "4.3": 5}
+    _SEC_MAX: dict[str, int] = {
+        "4.1": 5, "3.4": 4, "3.1": 3, "3.6": 4, "4.3": 5, "4.4": 4, "6.1": 6, "2.2": 4,
+    }
     for sid in SECTION_IDS:
         section_matches[sid].sort(
             key=lambda m: (
-                1 if m.status == "master_list_only" else 0,
+                1 if m.status in {"master_list_only", "register_only"} else 0,
                 -m.score,
                 m.heading.lower(),
             )
@@ -2355,7 +2709,7 @@ def _doc_no_matches_filename(doc_no: str, filename: str) -> bool:
 
     Full document-code matches are always OK. Suffix-only matches are useful for
     filenames that omit a prefix, but only when the suffix is long enough to be
-    distinctive (e.g. 1031, not 20 or 7).
+    distinctive (e.g. 1031, not 20 / 001 / 7).
     """
     if not doc_no or not filename:
         return False
@@ -2364,7 +2718,10 @@ def _doc_no_matches_filename(doc_no: str, filename: str) -> bool:
     if doc in fn:
         return True
     suffix = re.split(r"[=/._-]", doc)[-1]
-    return len(suffix) >= 3 and re.search(rf"(?<!\d){re.escape(suffix)}(?!\d)", fn) is not None
+    # Reject short or purely numeric suffixes — they collide (C-001 vs ASF-25-001)
+    if len(suffix) < 4 or re.fullmatch(r"\d{1,4}", suffix):
+        return False
+    return re.search(rf"(?<!\d){re.escape(suffix)}(?!\d)", fn) is not None
 
 
 def _path_match_blob(folder: Path, path: Path) -> str:
@@ -3480,11 +3837,15 @@ def _insert_images_in_document(
 
 
 def _extract_calibration_cert_number(folder: Path | None, matches: list[DocumentMatch]) -> str:
+    """Return a calibration *certificate* number, not a worksheet title."""
     if folder:
         for path in sorted(folder.rglob("*"), key=lambda p: p.name.lower()):
             if path.suffix.lower() != ".pdf":
                 continue
-            if "calibration register" not in path.name.lower():
+            name = path.name.lower()
+            if "calibration register" not in name and "calibration certificate" not in name:
+                continue
+            if any(k in name for k in ("check", "worksheet", "instrument")):
                 continue
             text = _pdf_text(path, max_pages=10)
             nums = re.findall(r"\b([A-Z]{1,4}\d[\d./-]{4,}|\d{10,})\b", text)
@@ -3495,6 +3856,10 @@ def _extract_calibration_cert_number(folder: Path | None, matches: list[Document
 
     for m in matches:
         blob = _text_blob(m.heading, m.filename, m.doc_no)
+        if any(k in blob for k in ("check", "worksheet", "instrument check", "ph meter")):
+            continue
+        if "certificate" not in blob and "cert" not in blob:
+            continue
         for pat in (
             r"\b([A-Z]{1,4}\d[\d./-]{4,})\b",
             r"\b(\d{10,})\b",
@@ -3541,8 +3906,15 @@ def _format_section_rhs(
 
     if sid == "4.1":
         cert_no = _extract_calibration_cert_number(folder, matches)
-        if not cert_no and matches:
-            cert_no = Path(matches[0].filename).stem if matches[0].filename else matches[0].heading
+        # Do not treat calibration worksheets/checks as certificates
+        if not cert_no:
+            for m in matches:
+                blob = _text_blob(m.heading, m.filename, m.doc_no)
+                if any(k in blob for k in ("check", "worksheet", "instrument")):
+                    continue
+                cert_no = m.doc_no or _clean_doc_heading(m.heading, m.filename)
+                if cert_no:
+                    break
         if cert_no:
             if not allow_repeat:
                 used_doc_nos.add(cert_no)
@@ -4363,6 +4735,12 @@ def write_summary(result: FAResult, path: Path) -> None:
                 doc = f"{m.doc_no} — " if m.doc_no else ""
                 if m.status == "master_list_only":
                     status = "listed in master list only"
+                elif m.status == "register_only":
+                    status = "listed in document register only"
+                elif m.status == "content_reference":
+                    status = "provided file matched (doc no from content)"
+                elif m.status == "needs_review":
+                    status = "needs review"
                 else:
                     status = "provided file matched"
                 lines.append(f"  • {doc}{m.heading} [{m.filename}] ({status})")
@@ -4376,12 +4754,12 @@ def write_summary(result: FAResult, path: Path) -> None:
         lines.append("")
     if result.checklist:
         provided = sum(1 for c in result.checklist if c.status == "provided_file")
-        master_only = sum(1 for c in result.checklist if c.status == "master_list_only")
+        master_only = sum(1 for c in result.checklist if c.status in {"master_list_only", "register_only"})
         missing = sum(1 for c in result.checklist if c.status == "not_found")
         lines.append(
             "CHECKLIST: "
             f"{provided} provided file matched, "
-            f"{master_only} listed in master list only, "
+            f"{master_only} listed in master list / register only, "
             f"{missing} not found"
         )
         lines.append("")
@@ -4524,11 +4902,208 @@ def run_fa_supplement(
     return result, copied
 
 
+def collect_low_confidence_sections(result: FAResult) -> list[str]:
+    """Sections that are empty or only have weak/register-only evidence."""
+    weak_status = {"master_list_only", "register_only", "needs_review"}
+    out: list[str] = []
+    for sid in SECTION_IDS:
+        matches = result.sections.get(sid, [])
+        if not matches:
+            out.append(sid)
+            continue
+        if all(m.status in weak_status for m in matches):
+            out.append(sid)
+    return out
+
+
+def build_model_review_payload(folder: Path, result: FAResult) -> dict[str, Any]:
+    """Build a JSON payload for optional LLM review of empty/low-confidence sections.
+
+    The model must only propose documents that exist in `files` or `register_entries`.
+    It must not invent document numbers.
+    """
+    folder = folder.resolve()
+    low = collect_low_confidence_sections(result)
+    files = []
+    for path in list_folder_files(folder):
+        if path.suffix.lower() in IMAGE_EXTENSIONS:
+            continue
+        meta = extract_content_meta(path) if path.suffix.lower() in {".pdf", ".docx", ".xlsx", ".xls"} else {}
+        files.append(
+            {
+                "filename": path.name,
+                "relative": str(path.relative_to(folder)) if path.is_relative_to(folder) else path.name,
+                "doc_no": meta.get("doc_no", "") or extract_doc_no_from_filename(path.name),
+                "title": meta.get("title", "") or path.stem,
+                "snippet": (meta.get("blob", "") or path.stem)[:400],
+            }
+        )
+
+    register_entries = []
+    _, entries = collect_register_entries(folder)
+    for entry in entries[:200]:
+        register_entries.append(
+            {
+                "doc_no": entry.doc_no,
+                "name": entry.name,
+                "source": entry.source,
+            }
+        )
+
+    return {
+        "instruction": (
+            "For each low-confidence FA section, propose at most 2 documents. "
+            "Only use filenames or register entries from this payload. "
+            "Return JSON list of objects with keys: section_id, doc_no, name, "
+            "source_file, status, confidence, reason. "
+            "status must be one of: provided_file, register_only, content_reference, not_found, needs_review. "
+            "If nothing fits, return status=not_found for that section."
+        ),
+        "section_ids": SECTION_IDS,
+        "low_confidence_sections": low,
+        "current_matches": {
+            sid: [
+                {
+                    "heading": m.heading,
+                    "filename": m.filename,
+                    "doc_no": m.doc_no,
+                    "status": m.status,
+                    "score": m.score,
+                }
+                for m in result.sections.get(sid, [])
+            ]
+            for sid in low
+        },
+        "files": files[:250],
+        "register_entries": register_entries,
+    }
+
+
+def apply_model_review_proposals(
+    result: FAResult,
+    proposals: list[dict[str, Any]] | dict[str, Any],
+    folder: Path,
+) -> FAResult:
+    """Merge model proposals only when they cite real files or register entries."""
+    if isinstance(proposals, dict):
+        proposals = proposals.get("proposals") or proposals.get("results") or []
+    if not isinstance(proposals, list):
+        return result
+
+    folder = folder.resolve()
+    known_files = {p.name.lower(): p.name for p in list_folder_files(folder)}
+    _, entries = collect_register_entries(folder)
+    known_docs = {e.doc_no.upper(): e for e in entries}
+    known_names = {e.name.lower(): e for e in entries}
+
+    for raw in proposals:
+        if not isinstance(raw, dict):
+            continue
+        sid = str(raw.get("section_id", "")).strip()
+        if sid not in SECTION_IDS:
+            continue
+        status = str(raw.get("status", "needs_review")).strip().lower()
+        if status == "not_found":
+            continue
+        doc_no = str(raw.get("doc_no", "") or "").strip().upper()
+        name = str(raw.get("name", "") or "").strip()
+        source_file = str(raw.get("source_file", "") or "").strip()
+        confidence = float(raw.get("confidence", 0) or 0)
+
+        # Validate against real sources — never invent
+        valid = False
+        filename = ""
+        if source_file:
+            key = Path(source_file).name.lower()
+            if key in known_files:
+                filename = known_files[key]
+                valid = True
+        if doc_no and doc_no in known_docs:
+            valid = True
+            name = name or known_docs[doc_no].name
+            if not filename:
+                filename = REGISTER_ONLY_FILENAME
+                status = "register_only"
+        if name and name.lower() in known_names:
+            valid = True
+            entry = known_names[name.lower()]
+            doc_no = doc_no or entry.doc_no
+            if not filename:
+                filename = REGISTER_ONLY_FILENAME
+                status = "register_only"
+        if not valid or confidence < 0.4:
+            continue
+
+        # Do not overwrite strong existing provided-file matches
+        existing = result.sections.get(sid, [])
+        if any(m.status == "provided_file" for m in existing):
+            continue
+
+        if status not in {
+            "provided_file", "register_only", "master_list_only",
+            "content_reference", "needs_review",
+        }:
+            status = "needs_review"
+
+        result.sections.setdefault(sid, [])
+        # Replace empty/weak section with validated proposal
+        if not existing or all(
+            m.status in {"master_list_only", "register_only", "needs_review"} for m in existing
+        ):
+            result.sections[sid] = [
+                DocumentMatch(
+                    heading=name or Path(filename).stem,
+                    filename=filename or REGISTER_ONLY_FILENAME,
+                    doc_no=doc_no,
+                    source="model_review",
+                    score=max(4.0, confidence * 10),
+                    status=status if filename and not _is_master_list_only_filename(filename) else "needs_review",
+                )
+            ]
+    return result
+
+
+def maybe_run_model_review(
+    result: FAResult,
+    folder: Path,
+    enabled: bool = False,
+    model_callable: Any | None = None,
+    payload_out: Path | None = None,
+) -> FAResult:
+    """Optional model fallback for low-confidence sections only.
+
+    If enabled without a model_callable, writes the review payload JSON for
+    external/offline review and leaves matches unchanged.
+    """
+    if not enabled:
+        return result
+    payload = build_model_review_payload(folder, result)
+    if payload_out is not None:
+        payload_out.parent.mkdir(parents=True, exist_ok=True)
+        payload_out.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    if not payload.get("low_confidence_sections"):
+        return result
+    if model_callable is None:
+        return result
+    try:
+        raw = model_callable(payload)
+    except Exception:
+        return result
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except Exception:
+            return result
+    return apply_model_review_proposals(result, raw, folder)
+
+
 def run_fa(
     folder: Path,
     output_dir: Path | None = None,
     template_path: Path | None = None,
     auditor_names: list[str] | None = None,
+    model_review: bool = False,
+    model_callable: Any | None = None,
 ) -> FAResult:
     folder = folder.resolve()
     template_path = (template_path or DEFAULT_TEMPLATE).resolve()
@@ -4539,6 +5114,17 @@ def run_fa(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     result = match_documents(folder)
+    if model_review:
+        factory_name = folder.name[:40].replace("/", "-")
+        payload_path = output_dir / f"FA_model_review_payload_{factory_name}.json"
+        result = maybe_run_model_review(
+            result,
+            folder,
+            enabled=True,
+            model_callable=model_callable,
+            payload_out=payload_path,
+        )
+
     image_matches = match_images(folder)
     result.images = image_matches
     result.factory_info = parse_factory_info(folder)
@@ -4575,9 +5161,19 @@ def main():
     ap.add_argument("folder", type=Path, help="Folder with client FA documents")
     ap.add_argument("--template", type=Path, default=DEFAULT_TEMPLATE)
     ap.add_argument("--output", type=Path, default=None)
+    ap.add_argument(
+        "--model-review",
+        action="store_true",
+        help="Write low-confidence section payload for optional model review (does not invent matches)",
+    )
     args = ap.parse_args()
 
-    result = run_fa(args.folder, args.output, args.template)
+    result = run_fa(
+        args.folder,
+        args.output,
+        args.template,
+        model_review=args.model_review,
+    )
     print(f"Filled template: {result.output_docx}")
     print(f"Summary: {result.summary_path}")
     for sid in SECTION_IDS:
