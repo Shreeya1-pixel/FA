@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: fa-portal
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run fa_portal/app.py --server.port=$PORT --server.address=0.0.0.0
+    envVars:
+      - key: FA_TEMPLATE_PATH
+        value: FA/templates/FA_template.docx
+      - key: PYTHON_VERSION
+        value: "3.11.9"

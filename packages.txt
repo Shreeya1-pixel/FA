@@ -1,0 +1,2 @@
+# System packages for Streamlit Community Cloud (apt)
+# pymupdf / Pillow usually ship wheels; keep this file for future native deps.

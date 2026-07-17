@@ -123,8 +123,13 @@ AUDITOR_REGISTRY: dict[str, str] = {
 MAIN_AUDITOR_CODES = {"PB", "PD", "NP"}
 AUDITOR_SIGNATURE_DIR = Path(__file__).resolve().parent / "signatures"
 
-DEFAULT_TEMPLATE = Path.home() / "Desktop" / "FA template.docx"
 SCRIPT_DIR = Path(__file__).resolve().parent
+# Bundled backend template — shared for all users / deployments
+DEFAULT_TEMPLATE = SCRIPT_DIR / "templates" / "FA_template.docx"
+# Local Desktop fallback only when bundled template is missing (dev machines)
+_DESKTOP_TEMPLATE = Path.home() / "Desktop" / "FA template.docx"
+if not DEFAULT_TEMPLATE.exists() and _DESKTOP_TEMPLATE.exists():
+    DEFAULT_TEMPLATE = _DESKTOP_TEMPLATE
 
 MASTER_LIST_PATTERNS = [
     r"master\s*(?:documents?\s*)?list",

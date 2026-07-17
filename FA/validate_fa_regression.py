@@ -18,7 +18,9 @@ from pathlib import Path
 
 FA_DIR = Path(__file__).resolve().parent
 ROOT = FA_DIR.parent
-DEFAULT_TEMPLATE = Path.home() / "Desktop" / "FA template.docx"
+DEFAULT_TEMPLATE = FA_DIR / "templates" / "FA_template.docx"
+if not DEFAULT_TEMPLATE.exists():
+    DEFAULT_TEMPLATE = Path.home() / "Desktop" / "FA template.docx"
 
 if str(FA_DIR) not in sys.path:
     sys.path.insert(0, str(FA_DIR))

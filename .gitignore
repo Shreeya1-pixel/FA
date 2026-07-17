@@ -12,7 +12,9 @@ env/
 
 # Portal runtime artifacts
 fa_portal/runs/
+fa_portal/data/
 fa_portal/fa_feedback.jsonl
+fa_portal/fa_settings.json
 portal/
 
 # FA temp/test outputs

@@ -4,8 +4,11 @@ FA Report Generator Portal — TÜV Rheinland
 Standalone Streamlit app for generating Factory Audit reports.
 Upload factory documents → auto-fill the FA template → download the report.
 
-Run with:
+Local:
     streamlit run fa_portal/app.py
+
+Deploy (Streamlit Cloud / Railway / Render):
+    See README.md — template is bundled at FA/templates/FA_template.docx
 """
 
 from __future__ import annotations
@@ -13,7 +16,9 @@ from __future__ import annotations
 import importlib
 import io
 import json
+import os
 import sys
+import tempfile
 import time
 import traceback
 import zipfile
@@ -26,13 +31,31 @@ import streamlit as st
 PORTAL_DIR = Path(__file__).resolve().parent
 ROOT = PORTAL_DIR.parent
 FA_DIR = ROOT / "FA"
-RUNS_DIR = PORTAL_DIR / "runs"
-RUNS_DIR.mkdir(exist_ok=True)
-SETTINGS_FILE = PORTAL_DIR / "fa_settings.json"
-LOG_FILE = PORTAL_DIR / "fa_feedback.jsonl"
-PYTHON = ROOT / ".venv" / "bin" / "python"
-if not PYTHON.exists():
-    PYTHON = Path(sys.executable)
+TEMPLATES_DIR = FA_DIR / "templates"
+BUNDLED_TEMPLATE = TEMPLATES_DIR / "FA_template.docx"
+
+
+def _writable_data_dir() -> Path:
+    """Prefer repo-local data; fall back to /tmp on read-only cloud filesystems."""
+    preferred = Path(os.environ.get("FA_DATA_DIR", str(PORTAL_DIR / "data")))
+    try:
+        preferred.mkdir(parents=True, exist_ok=True)
+        probe = preferred / ".write_test"
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink(missing_ok=True)
+        return preferred
+    except OSError:
+        fallback = Path(tempfile.gettempdir()) / "fa_portal_data"
+        fallback.mkdir(parents=True, exist_ok=True)
+        return fallback
+
+
+DATA_DIR = _writable_data_dir()
+RUNS_DIR = Path(os.environ.get("FA_RUNS_DIR", str(DATA_DIR / "runs")))
+RUNS_DIR.mkdir(parents=True, exist_ok=True)
+SETTINGS_FILE = DATA_DIR / "fa_settings.json"
+LOG_FILE = DATA_DIR / "fa_feedback.jsonl"
+PYTHON = Path(sys.executable)
 
 for p in (str(FA_DIR), str(ROOT)):
     if p not in sys.path:
@@ -47,9 +70,33 @@ except Exception as _e:
     FA_AVAILABLE = False
     _fa_import_error = str(_e)
 
+
+def resolve_template_path(configured: str | None = None) -> Path:
+    """Resolve the shared backend template. Never require a per-user Desktop copy."""
+    candidates: list[Path] = []
+    if configured and configured.strip():
+        candidates.append(Path(configured.strip()).expanduser())
+    env_tpl = os.environ.get("FA_TEMPLATE_PATH", "").strip()
+    if env_tpl:
+        candidates.append(Path(env_tpl).expanduser())
+    candidates.append(BUNDLED_TEMPLATE)
+    if FA_AVAILABLE:
+        candidates.append(Path(getattr(fa_mod, "DEFAULT_TEMPLATE", BUNDLED_TEMPLATE)))
+    # Last-resort local dev fallback
+    candidates.append(Path.home() / "Desktop" / "FA template.docx")
+
+    for path in candidates:
+        try:
+            if path.exists() and path.is_file():
+                return path.resolve()
+        except OSError:
+            continue
+    return BUNDLED_TEMPLATE
+
+
 # ── default settings ──────────────────────────────────────────────────────────
 DEFAULT_SETTINGS: dict[str, str] = {
-    "template_path": str(Path.home() / "Desktop" / "FA template.docx"),
+    "template_path": str(BUNDLED_TEMPLATE),
     "output_dir": str(RUNS_DIR),
     "default_country": "KSA",
     "default_auditor": "",
@@ -59,16 +106,28 @@ DEFAULT_SETTINGS: dict[str, str] = {
 
 
 def load_settings() -> dict[str, str]:
+    settings = dict(DEFAULT_SETTINGS)
     if SETTINGS_FILE.exists():
         try:
-            return {**DEFAULT_SETTINGS, **json.loads(SETTINGS_FILE.read_text())}
+            settings.update(json.loads(SETTINGS_FILE.read_text(encoding="utf-8")))
         except Exception:
             pass
-    return dict(DEFAULT_SETTINGS)
+    # Always prefer bundled template if the configured path is missing / Desktop-only
+    configured = Path(settings.get("template_path", ""))
+    if not configured.exists():
+        settings["template_path"] = str(resolve_template_path())
+    else:
+        # Migrate old Desktop paths to bundled template when available
+        if "Desktop" in str(configured) and BUNDLED_TEMPLATE.exists():
+            settings["template_path"] = str(BUNDLED_TEMPLATE)
+    if not Path(settings.get("output_dir", "")).exists():
+        settings["output_dir"] = str(RUNS_DIR)
+    return settings
 
 
 def save_settings(s: dict[str, str]) -> None:
-    SETTINGS_FILE.write_text(json.dumps(s, indent=2))
+    SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    SETTINGS_FILE.write_text(json.dumps(s, indent=2), encoding="utf-8")
 
 
 def load_runs() -> list[dict]:
@@ -551,7 +610,13 @@ if page == "Generate Report":
 
     if run_btn and docs_uploads:
         ts = int(time.time())
-        run_dir = RUNS_DIR / f"run_{ts}"
+        out_base = Path(settings.get("output_dir") or RUNS_DIR)
+        try:
+            out_base.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            out_base = RUNS_DIR
+            out_base.mkdir(parents=True, exist_ok=True)
+        run_dir = out_base / f"run_{ts}"
         run_dir.mkdir(parents=True, exist_ok=True)
 
         with st.spinner("Extracting documents…"):
@@ -571,11 +636,12 @@ if page == "Generate Report":
             audit_dest.parent.mkdir(parents=True, exist_ok=True)
             audit_dest.write_bytes(audit_bytes)
 
-        template_path = Path(settings["template_path"])
+        template_path = resolve_template_path(settings.get("template_path"))
         if not template_path.exists():
             st.error(
-                f"FA template not found at `{template_path}`.  "
-                "Please update the path in **Settings**."
+                "FA template not found. Expected bundled file at "
+                f"`FA/templates/FA_template.docx` (or set FA_TEMPLATE_PATH). "
+                f"Resolved path: `{template_path}`."
             )
             st.stop()
 
@@ -988,17 +1054,31 @@ elif page == "Run History":
 elif page == "Settings":
     st.title("⚙️ Settings")
     settings = load_settings()
+    bundled = resolve_template_path()
 
     with st.form("settings_form"):
-        st.subheader("Paths")
+        st.subheader("Template (backend)")
+        st.caption(
+            "All users share the server template. "
+            f"Bundled path: `{BUNDLED_TEMPLATE}`"
+        )
+        if bundled.exists():
+            st.success(f"Bundled template ready ✅  `{bundled}`")
+        else:
+            st.error(
+                "Bundled template missing. Add `FA/templates/FA_template.docx` "
+                "to the repo before deploying."
+            )
+
         template = st.text_input(
-            "FA Template path (.docx)",
+            "Override template path (optional)",
             value=settings["template_path"],
-            help="Full path to the FA template Word document.",
+            help="Leave as the bundled path for multi-user deploy. Override only for local testing.",
         )
         output_dir = st.text_input(
             "Output / runs directory",
             value=settings["output_dir"],
+            help="Writable folder for generated reports. On cloud this may be under /tmp.",
         )
 
         st.subheader("Defaults")
@@ -1013,29 +1093,38 @@ elif page == "Settings":
             placeholder="Pre-fill the auditor name field on every new run",
         )
 
-        st.subheader("AI diagnosis (Qwen coder)")
+        st.subheader("AI diagnosis (Qwen coder) — optional / local only")
+        st.caption(
+            "Ollama is not available on Streamlit Cloud by default. "
+            "Use this only on a machine that runs Ollama."
+        )
         qwen_model = st.text_input(
             "Qwen model (Ollama)",
             value=settings.get("qwen_model", "qwen2.5-coder:7b"),
-            help="Local Ollama model used for propose-only diagnosis. Pull it with "
-                 "`ollama pull qwen2.5-coder:7b` (or a larger coder variant).",
+            help="Local Ollama model. Pull with `ollama pull qwen2.5-coder:7b`.",
         )
         ollama_host = st.text_input(
             "Ollama host",
             value=settings.get("ollama_host", "http://localhost:11434"),
         )
 
-        st.subheader("Status")
-        template_ok = Path(template).exists()
-        if template_ok:
-            st.success(f"Template found ✅  `{template}`")
+        st.subheader("Runtime")
+        st.code(
+            f"DATA_DIR={DATA_DIR}\nRUNS_DIR={RUNS_DIR}\nPYTHON={PYTHON}\n"
+            f"FA_AVAILABLE={FA_AVAILABLE}",
+            language="text",
+        )
+
+        resolved = resolve_template_path(template)
+        if resolved.exists():
+            st.success(f"Template resolves to ✅  `{resolved}`")
         else:
-            st.warning(f"Template not found at `{template}`")
+            st.warning(f"Template not found at `{resolved}`")
 
         if st.form_submit_button("Save Settings"):
             save_settings(
                 {
-                    "template_path": template,
+                    "template_path": str(resolve_template_path(template)),
                     "output_dir": output_dir,
                     "default_country": country,
                     "default_auditor": auditor,
@@ -1052,10 +1141,10 @@ elif page == "Settings":
         **FA Report Generator** — TÜV Rheinland  
         Automates filling of the Harmonized Factory Audit Report template from client documents.
 
-        **Photo layout:** Factory photos are arranged in a 2-column table — two headings side by side.  
-        **Report number format:** `FA + CountryCode + AuditorInitials + DDMMYYYY + 01`  
-        **Feedback:** Logged to `fa_portal/fa_feedback.jsonl` for continuous improvement.
+        - Template is **backend-bundled** (`FA/templates/FA_template.docx`) so every user gets the same file.
+        - Deploy with Streamlit Community Cloud or Railway (see repo `README.md`).
+        - **Report number format:** `FA + CountryCode + AuditorInitials + DDMMYYYY + 01`
         """
     )
-    fa_version = getattr(fa_mod, "__version__", "N/A") if FA_AVAILABLE else "unavailable"
-    st.caption(f"fa_automation version: `{fa_version}`")
+    fa_version = getattr(fa_mod, "__file__", "N/A") if FA_AVAILABLE else "unavailable"
+    st.caption(f"fa_automation: `{fa_version}`")

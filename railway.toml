@@ -1,0 +1,10 @@
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "streamlit run fa_portal/app.py --server.port=$PORT --server.address=0.0.0.0"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+[variables]
+FA_TEMPLATE_PATH = "FA/templates/FA_template.docx"
