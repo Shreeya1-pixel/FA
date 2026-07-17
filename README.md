@@ -90,3 +90,4 @@ Procfile / railway.toml / render.yaml
 - Upload limit is set to **500 MB** in `.streamlit/config.toml`.
 - Generated runs are stored under `fa_portal/data/runs` locally, or `/tmp/fa_portal_data` on read-only hosts.
 - Local Ollama / Qwen diagnosis is optional and only works where Ollama is installed (not on Streamlit Cloud by default).
+- Do **not** add an empty/`packages.txt` with only comments — Streamlit Cloud apt install fails with `Unsupported file / given on commandline`.
